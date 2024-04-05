@@ -5,9 +5,7 @@ import dev.mikita.automatewizard.dto.response.ActionResponse;
 import dev.mikita.automatewizard.dto.response.PluginResponse;
 import dev.mikita.automatewizard.dto.response.TriggerResponse;
 import dev.mikita.automatewizard.entity.User;
-import dev.mikita.automatewizard.service.ActionService;
 import dev.mikita.automatewizard.service.PluginService;
-import dev.mikita.automatewizard.service.TriggerService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.core.ParameterizedTypeReference;
@@ -24,13 +22,25 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PluginController {
     private final PluginService pluginService;
-    private final ActionService actionService;
-    private final TriggerService triggerService;
 
     @GetMapping
     public ResponseEntity<List<PluginResponse>> getPlugins() {
         return ResponseEntity.ok(new ModelMapper().map(
                 pluginService.getAllPlugins(),
+                new ParameterizedTypeReference<List<PluginResponse>>() {}.getType()));
+    }
+
+    @GetMapping("/installed")
+    public ResponseEntity<List<PluginResponse>> getInstalledPlugins(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new ModelMapper().map(
+                pluginService.getInstalledPlugins(user),
+                new ParameterizedTypeReference<List<PluginResponse>>() {}.getType()));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<List<PluginResponse>> getMyPlugins(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new ModelMapper().map(
+                pluginService.getUserPlugins(user),
                 new ParameterizedTypeReference<List<PluginResponse>>() {}.getType()));
     }
 
@@ -44,6 +54,7 @@ public class PluginController {
                                                        @AuthenticationPrincipal User user) {
         var plugin = pluginService.createPlugin(request, user);
 
+        // Create resource URI
         String resourceUri = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
@@ -63,27 +74,26 @@ public class PluginController {
     @GetMapping("/{id}/actions")
     public ResponseEntity<List<ActionResponse>> getActions(@PathVariable UUID id) {
         return ResponseEntity.ok(new ModelMapper().map(
-                actionService.getActionsByPluginId(id),
+                pluginService.getActionsByPluginId(id),
                 new ParameterizedTypeReference<List<ActionResponse>>() {}.getType()));
     }
 
     @GetMapping("/{id}/triggers")
     public ResponseEntity<List<TriggerResponse>> getTriggers(@PathVariable UUID id) {
         return ResponseEntity.ok(new ModelMapper().map(
-                triggerService.getTriggersByPluginId(id),
+                pluginService.getTriggersByPluginId(id),
                 new ParameterizedTypeReference<List<TriggerResponse>>() {}.getType()));
     }
 
     @PostMapping("/{id}/install")
-    public ResponseEntity<PluginResponse> installPlugin(@PathVariable UUID id, @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(new ModelMapper().map(
-                pluginService.installPlugin(id, user), PluginResponse.class));
+    public ResponseEntity<Void> installPlugin(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        pluginService.installPlugin(id, user);
+        return ResponseEntity.ok().build();
     }
 
-    @DeleteMapping("/{id}/install")
+    @PostMapping("/{id}/uninstall")
     public ResponseEntity<Void> uninstallPlugin(@PathVariable UUID id, @AuthenticationPrincipal User user) {
-
-
+        pluginService.uninstallPlugin(id, user);
         return ResponseEntity.noContent().build();
     }
 }

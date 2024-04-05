@@ -1,5 +1,6 @@
-package dev.mikita.automatewizard.dto.response;
+package dev.mikita.automatewizard.entity;
 
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,10 +11,10 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ActionResponse {
+@Entity
+@Table(name = "aw_webhook")
+public class Webhook {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-    private String name;
-    private String label;
-    private String description;
-    private UUID pluginId;
 }

@@ -1,5 +1,6 @@
 package dev.mikita.automatewizard.dto.request;
 
+import dev.mikita.automatewizard.entity.ScenarioState;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,8 +10,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TriggerRequest {
-    private String name;
-    private String label;
-    private String description;
+public class UpdateScenarioStateRequest {
+    private ScenarioState state;
 }

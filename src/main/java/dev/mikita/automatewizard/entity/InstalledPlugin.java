@@ -17,10 +17,10 @@ public class InstalledPlugin {
     private InstalledPluginId id;
 
     @ManyToOne(optional = false)
-    @MapsId("user_id")
+    @MapsId("userId")
     private User user;
 
     @ManyToOne(optional = false)
-    @MapsId("plugin_id")
+    @MapsId("pluginId")
     private Plugin plugin;
 }

@@ -22,11 +22,7 @@ public class Task {
     @JoinColumn(name = "scenario_id")
     private Scenario scenario;
 
-    @ManyToOne(optional = false)
+    @ManyToOne
     @JoinColumn(name = "action_id")
     private Action action;
-
-    @OneToOne
-    @JoinColumn(name = "next_id")
-    private Task next;
 }

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -29,7 +30,18 @@ public class Scenario {
     @Column(name = "state", nullable = false)
     private ScenarioState state;
 
-    @OneToOne
-    @JoinColumn(name = "task_id")
-    private Task task;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "run_type", nullable = false)
+    private ScenarioRunType runType;
+
+    @ManyToOne
+    @JoinColumn(name = "trigger_id")
+    private Trigger trigger;
+
+    @OrderColumn(name = "task_order")
+    @OneToMany(mappedBy = "scenario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Task> tasks;
+
+    @OneToMany(mappedBy = "scenario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<ScenarioExecution> executions;
 }

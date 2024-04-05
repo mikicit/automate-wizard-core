@@ -2,14 +2,14 @@ spring:
   application:
     name: automatewizard
   datasource:
-    url: jdbc:h2:mem:testdb
+    url: jdbc:h2:file:~/spring-boot-h2-db
     driver-class-name: org.h2.Driver
     username: root
     password: 12345
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update #create-drop, create, update, validate, none
     show-sql: true
     properties:
       format_sql: true

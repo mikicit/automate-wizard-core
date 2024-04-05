@@ -1,16 +1,16 @@
-package dev.mikita.automatewizard.dto.request;
+package dev.mikita.automatewizard.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TriggerRequest {
-    private String name;
-    private String label;
-    private String description;
+public class TaskResponse {
+    private UUID taskId;
+    private UUID actionId;
 }

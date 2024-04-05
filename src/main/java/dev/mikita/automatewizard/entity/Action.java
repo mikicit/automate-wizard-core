@@ -21,13 +21,13 @@ public class Action {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "label", nullable = false)
+    private String label;
+
+    @Column(name = "description", nullable = false)
+    private String description;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "plugin_id")
     private Plugin plugin;
-
-    @Column(name = "path", nullable = false)
-    private String path;
-
-    @Column(name = "method", nullable = false)
-    private String method;
 }

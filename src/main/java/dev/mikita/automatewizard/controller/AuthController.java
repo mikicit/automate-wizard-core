@@ -17,12 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
     private final AuthService authService;
 
-    @PostMapping("/signup")
+    @PostMapping(path = "/signup", consumes = "application/json")
     public ResponseEntity<JwtAuthenticationResponse> signUp(@RequestBody SignUpRequest request) {
         return ResponseEntity.ok(authService.signUp(request));
     }
 
-    @PostMapping("/signin")
+    @PostMapping(path = "/signin", consumes = "application/json")
     public ResponseEntity<JwtAuthenticationResponse> signIn(@RequestBody SignInRequest request) {
         return ResponseEntity.ok(authService.signIn(request));
     }

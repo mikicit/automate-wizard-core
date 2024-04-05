@@ -1,7 +1,9 @@
 package dev.mikita.automatewizard.controller;
 
 import dev.mikita.automatewizard.dto.request.CreateScenarioRequest;
-import dev.mikita.automatewizard.dto.response.ScenarioResponse;
+import dev.mikita.automatewizard.dto.request.TaskRequest;
+import dev.mikita.automatewizard.dto.request.UpdateScenarioStateRequest;
+import dev.mikita.automatewizard.dto.response.*;
 import dev.mikita.automatewizard.entity.User;
 import dev.mikita.automatewizard.service.ScenarioService;
 import lombok.RequiredArgsConstructor;
@@ -21,19 +23,48 @@ import java.util.UUID;
 public class ScenarioController {
     private final ScenarioService scenarioService;
 
-    @GetMapping
+    @GetMapping(produces = "application/json")
     public ResponseEntity<List<ScenarioResponse>> getScenarios(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(new ModelMapper().map(scenarioService.getScenarios(user),
                 new ParameterizedTypeReference<List<ScenarioResponse>>() {
         }.getType()));
     }
 
-    @GetMapping(path = "/{id}")
+    @GetMapping(path = "/{id}", produces = "application/json")
     private ResponseEntity<ScenarioResponse> getScenario(@PathVariable UUID id, @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(new ModelMapper().map(scenarioService.getScenario(id, user), ScenarioResponse.class));
     }
 
-    @PostMapping
+    @GetMapping(path = "/{id}/executions", produces = "application/json")
+    private ResponseEntity<List<ScenarioExecutionResponse>> getExecutions(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new ModelMapper().map(scenarioService.getExecutions(id, user),
+                new ParameterizedTypeReference<List<ScenarioExecutionResponse>>() {
+        }.getType()));
+    }
+
+    @GetMapping(path = "/{id}/executions/{executionId}", produces = "application/json")
+    private ResponseEntity<ScenarioExecutionResponse> getExecution(@PathVariable UUID id, @PathVariable UUID executionId,
+                                                                   @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new ModelMapper().map(scenarioService.getExecution(id, executionId, user),
+                ScenarioExecutionResponse.class));
+    }
+
+    @GetMapping(path = "/{id}/executions/{executionId}/tasks", produces = "application/json")
+    private ResponseEntity<List<TaskExecutionResponse>> getExecutionTasks(@PathVariable UUID id, @PathVariable UUID executionId,
+                                                                          @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new ModelMapper().map(scenarioService.getTaskExecutions(id, executionId, user),
+                new ParameterizedTypeReference<List<TaskExecutionResponse>>() {
+        }.getType()));
+    }
+
+    @GetMapping(path = "/{id}/executions/{executionId}/tasks/{taskId}", produces = "application/json")
+    private ResponseEntity<TaskExecutionResponse> getExecutionTask(@PathVariable UUID id, @PathVariable UUID executionId,
+                                                                   @PathVariable UUID taskId, @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new ModelMapper().map(scenarioService.getTaskExecution(id, executionId, taskId, user),
+                TaskExecutionResponse.class));
+    }
+
+    @PostMapping(consumes = "application/json", produces = "application/json")
     private ResponseEntity<ScenarioResponse> createScenario(@RequestBody CreateScenarioRequest request,
                                              @AuthenticationPrincipal User user) {
         var scenario = scenarioService.createScenario(request, user);
@@ -48,9 +79,38 @@ public class ScenarioController {
                 .body(new ModelMapper().map(scenario, ScenarioResponse.class));
     }
 
-    @DeleteMapping(path = "/{id}")
+    @DeleteMapping(path = "/{id}", consumes = "application/json")
     private ResponseEntity<Void> deleteScenario(@PathVariable UUID id, @AuthenticationPrincipal User user) {
         scenarioService.deleteScenario(id, user);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping(path = "/{id}/state", consumes = "application/json", produces = "application/json")
+    private ResponseEntity<ScenarioStateResponse> updateState(
+            @PathVariable UUID id, @RequestBody UpdateScenarioStateRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(ScenarioStateResponse.builder()
+                .state(scenarioService.updateState(id, request.getState(), user)).build());
+    }
+
+    @PostMapping(path = "/{id}/run")
+    private ResponseEntity<Void> runScenario(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        scenarioService.runScenario(id, user);
+        return ResponseEntity.accepted().build();
+    }
+
+    @GetMapping(path = "/{id}/tasks", produces = "application/json")
+    private ResponseEntity<List<TaskResponse>> getTasks(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new ModelMapper().map(scenarioService.getTasks(id, user),
+                new ParameterizedTypeReference<List<TaskResponse>>() {
+        }.getType()));
+    }
+
+    @PutMapping(path = "/{id}/tasks", consumes = "application/json", produces = "application/json")
+    private ResponseEntity<List<TaskResponse>> updateTasks(@PathVariable UUID id, @RequestBody List<TaskRequest> tasks,
+                                                           @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new ModelMapper().map(scenarioService.updateTasks(id, tasks, user),
+                new ParameterizedTypeReference<List<TaskResponse>>() {
+        }.getType()));
     }
 }
