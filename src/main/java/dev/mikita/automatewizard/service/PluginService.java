@@ -36,8 +36,8 @@ public class PluginService {
 
     public Plugin createPlugin(AddPluginRequest request, User user) {
         // Send plugin info request to plugin server
-        var response = webClientBuilder.baseUrl(request.getUrl()).build().get()
-                .uri("/init")
+        var response = webClientBuilder.baseUrl(request.getUrl()).build().post()
+                .uri("/")
                 .retrieve()
                 .bodyToMono(AddPluginResponse.class)
                 .block();
@@ -82,7 +82,7 @@ public class PluginService {
 
         // Send delete request to plugin server
         ClientResponse response = webClientBuilder.baseUrl(plugin.getUrl()).build().delete()
-                .uri("/delete")
+                .uri("/")
                 .exchange()
                 .block();
 
