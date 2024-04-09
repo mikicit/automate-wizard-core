@@ -7,15 +7,18 @@ spring:
     username: root
     password: 12345
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: update #create-drop, create, update, validate, none
     show-sql: true
     properties:
       format_sql: true
+    open-in-view: false
   h2:
     console:
       enabled: true
+logging:
+  level:
+    web: debug
 server:
   port: 8080
   forward-headers-strategy: framework
