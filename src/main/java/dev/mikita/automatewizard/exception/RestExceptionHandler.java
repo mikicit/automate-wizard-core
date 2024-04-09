@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -27,8 +28,8 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorInfo(request, e), HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(AuthException.class)
-    public ResponseEntity<ErrorInfo> authException(HttpServletRequest request, AuthException e) {
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorInfo> authException(HttpServletRequest request, AuthenticationException e) {
         logException(e);
         return new ResponseEntity<>(errorInfo(request, e), HttpStatus.UNAUTHORIZED);
     }
