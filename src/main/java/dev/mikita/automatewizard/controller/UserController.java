@@ -17,7 +17,7 @@ import java.util.UUID;
 public class UserController {
     private final UserService userService;
 
-    @GetMapping(path = "/{id}")
+    @GetMapping(path = "/{id}", produces = "application/json")
     public ResponseEntity<UserResponse> getUser(@PathVariable("id") UUID id){
         return ResponseEntity.ok(new ModelMapper().map(userService.getUser(id), UserResponse.class));
     }

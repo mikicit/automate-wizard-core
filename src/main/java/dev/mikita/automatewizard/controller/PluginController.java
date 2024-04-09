@@ -23,33 +23,33 @@ import java.util.UUID;
 public class PluginController {
     private final PluginService pluginService;
 
-    @GetMapping
+    @GetMapping(produces = "application/json")
     public ResponseEntity<List<PluginResponse>> getPlugins() {
         return ResponseEntity.ok(new ModelMapper().map(
                 pluginService.getAllPlugins(),
                 new ParameterizedTypeReference<List<PluginResponse>>() {}.getType()));
     }
 
-    @GetMapping("/installed")
+    @GetMapping(path = "/installed", produces = "application/json")
     public ResponseEntity<List<PluginResponse>> getInstalledPlugins(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(new ModelMapper().map(
                 pluginService.getInstalledPlugins(user),
                 new ParameterizedTypeReference<List<PluginResponse>>() {}.getType()));
     }
 
-    @GetMapping("/me")
+    @GetMapping(path = "/me", produces = "application/json")
     public ResponseEntity<List<PluginResponse>> getMyPlugins(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(new ModelMapper().map(
                 pluginService.getUserPlugins(user),
                 new ParameterizedTypeReference<List<PluginResponse>>() {}.getType()));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(path = "/{id}", produces = "application/json")
     public ResponseEntity<PluginResponse> getPlugin(@PathVariable UUID id) {
         return ResponseEntity.ok(new ModelMapper().map(pluginService.getPlugin(id), PluginResponse.class));
     }
 
-    @PostMapping
+    @PostMapping(consumes = "application/json", produces = "application/json")
     public ResponseEntity<PluginResponse> createPlugin(@RequestBody AddPluginRequest request,
                                                        @AuthenticationPrincipal User user) {
         var plugin = pluginService.createPlugin(request, user);
@@ -71,14 +71,14 @@ public class PluginController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{id}/actions")
+    @GetMapping(path = "/{id}/actions", produces = "application/json")
     public ResponseEntity<List<ActionResponse>> getActions(@PathVariable UUID id) {
         return ResponseEntity.ok(new ModelMapper().map(
                 pluginService.getActionsByPluginId(id),
                 new ParameterizedTypeReference<List<ActionResponse>>() {}.getType()));
     }
 
-    @GetMapping("/{id}/triggers")
+    @GetMapping(path = "/{id}/triggers", produces = "application/json")
     public ResponseEntity<List<TriggerResponse>> getTriggers(@PathVariable UUID id) {
         return ResponseEntity.ok(new ModelMapper().map(
                 pluginService.getTriggersByPluginId(id),
