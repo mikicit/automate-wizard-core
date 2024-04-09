@@ -1,4 +1,4 @@
-package dev.mikita.automatewizard.dto.response;
+package dev.mikita.automatewizard.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,8 +10,6 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TaskResponse {
-    private UUID taskId;
-    private UUID actionId;
-    private String preprocessor;
+public class UpdateScenarioTriggerRequest {
+    private UUID triggerId;
 }

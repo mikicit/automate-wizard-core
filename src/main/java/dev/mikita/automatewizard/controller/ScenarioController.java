@@ -1,8 +1,6 @@
 package dev.mikita.automatewizard.controller;
 
-import dev.mikita.automatewizard.dto.request.CreateScenarioRequest;
-import dev.mikita.automatewizard.dto.request.TaskRequest;
-import dev.mikita.automatewizard.dto.request.UpdateScenarioStateRequest;
+import dev.mikita.automatewizard.dto.request.*;
 import dev.mikita.automatewizard.dto.response.*;
 import dev.mikita.automatewizard.entity.User;
 import dev.mikita.automatewizard.service.ScenarioService;
@@ -79,7 +77,7 @@ public class ScenarioController {
                 .body(new ModelMapper().map(scenario, ScenarioResponse.class));
     }
 
-    @DeleteMapping(path = "/{id}", consumes = "application/json")
+    @DeleteMapping(path = "/{id}")
     private ResponseEntity<Void> deleteScenario(@PathVariable UUID id, @AuthenticationPrincipal User user) {
         scenarioService.deleteScenario(id, user);
         return ResponseEntity.noContent().build();
@@ -93,9 +91,25 @@ public class ScenarioController {
                 .state(scenarioService.updateState(id, request.getState(), user)).build());
     }
 
+    @PutMapping(path = "/{id}/run", consumes = "application/json", produces = "application/json")
+    private ResponseEntity<ScenarioRunTypeResponse> updateRunType(
+            @PathVariable UUID id, @RequestBody UpdateScenarioRunTypeRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(ScenarioRunTypeResponse.builder()
+                .runType(scenarioService.updateRunType(id, request.getRunType(), user)).build());
+    }
+
+    @PutMapping(path = "/{id}/trigger", consumes = "application/json", produces = "application/json")
+    private ResponseEntity<ScenarioTriggerResponse> updateTrigger(
+            @PathVariable UUID id, @RequestBody UpdateScenarioTriggerRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(ScenarioTriggerResponse.builder()
+                .triggerId(scenarioService.updateTrigger(id, request.getTriggerId(), user).getId()).build());
+    }
+
     @PostMapping(path = "/{id}/run")
     private ResponseEntity<Void> runScenario(@PathVariable UUID id, @AuthenticationPrincipal User user) {
-        scenarioService.runScenario(id, user);
+        scenarioService.runScenarioManual(id, user);
         return ResponseEntity.accepted().build();
     }
 

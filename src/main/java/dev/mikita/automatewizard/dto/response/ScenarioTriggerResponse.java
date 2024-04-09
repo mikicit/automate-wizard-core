@@ -10,8 +10,6 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TaskResponse {
-    private UUID taskId;
-    private UUID actionId;
-    private String preprocessor;
+public class ScenarioTriggerResponse {
+    private UUID triggerId;
 }

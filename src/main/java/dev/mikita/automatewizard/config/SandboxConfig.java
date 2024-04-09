@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.concurrent.Executors;
 
 @Configuration
-public class SandboxConfiguration {
+public class SandboxConfig {
     @Bean
     public NashornSandbox nashornSandbox() {
         NashornSandbox sandbox = NashornSandboxes.create();

@@ -1,5 +1,6 @@
 package dev.mikita.automatewizard.dto.response;
 
+import dev.mikita.automatewizard.entity.ScenarioRunType;
 import dev.mikita.automatewizard.entity.ScenarioState;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,4 +16,7 @@ public class ScenarioResponse {
     private UUID id;
     private String name;
     private ScenarioState state;
+    private ScenarioRunType runType;
+    private UUID triggerId;
+    private UUID webhookId;
 }

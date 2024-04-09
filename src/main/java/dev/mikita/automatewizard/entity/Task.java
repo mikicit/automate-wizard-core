@@ -25,4 +25,7 @@ public class Task {
     @ManyToOne
     @JoinColumn(name = "action_id")
     private Action action;
+
+    @Column(name = "preprocessor")
+    private String preprocessor;
 }

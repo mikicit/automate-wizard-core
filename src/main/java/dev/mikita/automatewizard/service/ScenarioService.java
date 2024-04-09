@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -17,6 +19,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ScenarioService {
+    private final TriggerRepository triggerRepository;
+    private final WebhookRepository webhookRepository;
     private final ScenarioRepository scenarioRepository;
     private final ActionRepository actionRepository;
     private final InstalledPluginRepository installedPluginRepository;
@@ -104,7 +108,8 @@ public class ScenarioService {
             throw new RuntimeException("Scenario not found");
         }
 
-        // TODO: Delete all triggers and executions
+        // Clear run type
+        clearRunType(scenario, user);
 
         scenarioRepository.delete(scenario);
     }
@@ -120,6 +125,65 @@ public class ScenarioService {
         scenarioRepository.save(scenario);
 
         return scenario.getState();
+    }
+
+    @Transactional
+    public ScenarioRunType updateRunType(UUID id, ScenarioRunType runType, User user) {
+        var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
+        if (!scenario.getOwner().equals(user)) {
+            throw new RuntimeException("Scenario not found");
+        }
+
+        if (scenario.getRunType() == runType) {
+            return scenario.getRunType();
+        }
+
+        // Clear old run type
+        clearRunType(scenario, user);
+
+        // Create webhook if needed
+        if (runType == ScenarioRunType.WEBHOOK) {
+            var webhook = Webhook.builder()
+                    .scenario(scenario)
+                    .build();
+            scenario.setWebhook(webhook);
+        }
+
+        scenario.setRunType(runType);
+        scenarioRepository.save(scenario);
+
+        return scenario.getRunType();
+    }
+
+    @Transactional
+    public Trigger updateTrigger(UUID id, UUID triggerId, User user) {
+        var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
+
+        if (!scenario.getOwner().equals(user)) {
+            throw new RuntimeException("Scenario not found");
+        } else if (scenario.getRunType() != ScenarioRunType.TRIGGER) {
+            throw new RuntimeException("Scenario is not trigger-based");
+        }
+
+        var oldTrigger = scenario.getTrigger();
+        var newTrigger = triggerRepository.findById(triggerId).orElseThrow(() -> new RuntimeException("Trigger not found"));
+
+        // Check if plugin is installed
+        if (!installedPluginRepository.existsByPluginIdAndUserId(newTrigger.getPlugin().getId(), user.getId())) {
+            throw new RuntimeException("Plugin %s not installed".formatted(newTrigger.getPlugin().getName()));
+        }
+
+        if (oldTrigger != null) {
+            // Check if trigger is the same
+            if (oldTrigger.getId().equals(newTrigger.getId())) {
+                return oldTrigger;
+            } else {
+                triggerUnsubscribe(scenario, user);
+            }
+        }
+
+        triggerSubscribe(scenario, newTrigger, user);
+        return newTrigger;
     }
 
     public List<Task> getTasks(UUID id, User user) {
@@ -138,8 +202,6 @@ public class ScenarioService {
             throw new RuntimeException("Scenario not found");
         }
 
-        // TODO: Check if there are any running instances of the scenario
-
         // Clear old tasks
         scenario.getTasks().clear();
 
@@ -148,6 +210,7 @@ public class ScenarioService {
                 .scenario(scenario)
                 .action(actionRepository.findById(taskRequest.getActionId())
                         .orElseThrow(() -> new RuntimeException("Action not found")))
+                .preprocessor(taskRequest.getPreprocessor())
                 .build()).toList();
 
         // Check if all plugins are installed
@@ -165,7 +228,7 @@ public class ScenarioService {
     }
 
     @Transactional(readOnly = true)
-    public void runScenario(UUID id, User user) {
+    public void runScenarioManual(UUID id, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
         // Validation
@@ -177,41 +240,92 @@ public class ScenarioService {
             throw new RuntimeException("Scenario is not manual");
         }
 
-        scenarioExecutionService.runScenario(scenario.getId(), Map.of());
+        scenarioExecutionService.runScenario(scenario.getId(), new HashMap<>());
     }
 
     @Transactional(readOnly = true)
-    public void taskHandler(UUID taskExecutionId, UUID scenarioExecutionId, Map<String, Object> payload) {
+    public void taskHandler(UUID taskExecutionId, Map<String, Object> payload) {
         var taskExecution = taskExecutionRepository.findById(taskExecutionId)
                 .orElseThrow(() -> new RuntimeException("Task execution not found"));
 
-        var scenarioExecution = scenarioExecutionRepository.findById(scenarioExecutionId)
-                .orElseThrow(() -> new RuntimeException("Scenario execution not found"));
-
         // Validation
-        if (scenarioExecution.getState() != ScenarioExecutionState.STARTED) {
-            throw new RuntimeException("Scenario execution is not started");
-        } else if (taskExecution.getState() != TaskExecutionState.STARTED) {
+        if (taskExecution.getState() != TaskExecutionState.STARTED) {
             throw new RuntimeException("Task execution is not started");
-        } else if (!taskExecution.getScenarioExecution().getId().equals(scenarioExecutionId)) {
-            throw new RuntimeException("Task execution not found");
         }
 
-        scenarioExecutionService.taskHandler(taskExecution.getId(), scenarioExecution.getId(), payload);
+        scenarioExecutionService.taskHandler(taskExecution.getId(), payload);
     }
 
     @Transactional(readOnly = true)
-    public void triggerHandler(UUID triggerId, UUID scenarioId, Map<String, Object> payload) {
+    public void triggerHandler(UUID scenarioId, Map<String, Object> payload) {
         var scenario = scenarioRepository.findById(scenarioId).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
         if (scenario.getState() == ScenarioState.INACTIVE) {
             throw new RuntimeException("Scenario is inactive");
         } else if (scenario.getRunType() != ScenarioRunType.TRIGGER) {
             throw new RuntimeException("Scenario is not trigger-based");
-        } else if (!scenario.getTrigger().getId().equals(triggerId)) {
-            throw new RuntimeException("Trigger not found");
         }
 
         scenarioExecutionService.runScenario(scenario.getId(), payload);
+    }
+
+    @Transactional(readOnly = true)
+    public void webhookHandler(UUID webhookId, Map<String, Object> payload) {
+        var webhook = webhookRepository.findById(webhookId).orElseThrow(() -> new RuntimeException("Webhook not found"));
+        var scenario = webhook.getScenario();
+
+        if (scenario.getState() == ScenarioState.INACTIVE) {
+            throw new RuntimeException("Scenario is inactive");
+        } else if (scenario.getRunType() != ScenarioRunType.WEBHOOK) {
+            throw new RuntimeException("Scenario is not webhook-based");
+        }
+
+        scenarioExecutionService.runScenario(scenario.getId(), payload);
+    }
+
+    private void triggerSubscribe(Scenario scenario, Trigger trigger, User user) {
+        scenario.setTrigger(trigger);
+
+        // Subscribe to trigger
+        ClientResponse response = webClientBuilder.baseUrl(trigger.getPlugin().getUrl()).build().post()
+                .uri("/triggers/%s".formatted(trigger.getName()))
+                .header("X-User-ID", user.getId().toString())
+                .header("X-Scenario-ID", scenario.getId().toString())
+                .exchange()
+                .block();
+
+        if (response == null || response.statusCode().isError()) {
+            throw new RuntimeException("Failed to subscribe to trigger");
+        }
+    }
+
+    private void triggerUnsubscribe(Scenario scenario, User user) {
+        var trigger = scenario.getTrigger();
+
+        // Unsubscribe from trigger
+        ClientResponse response = webClientBuilder.baseUrl(trigger.getPlugin().getUrl()).build().delete()
+                .uri("/triggers/%s".formatted(trigger.getName()))
+                .header("X-User-ID", user.getId().toString())
+                .header("X-Scenario-ID", scenario.getId().toString())
+                .exchange()
+                .block();
+
+        if (response == null || response.statusCode().isError()) {
+            throw new RuntimeException("Failed to unsubscribe from trigger");
+        }
+
+        scenario.setTrigger(null);
+    }
+
+    private void clearRunType(Scenario scenario, User user) {
+        // Clear trigger if exists
+        if (scenario.getTrigger() != null) {
+            triggerUnsubscribe(scenario, user);
+        }
+
+        // Clear user's webhook if exists
+        if (scenario.getWebhook() != null) {
+            scenario.setWebhook(null);
+        }
     }
 }

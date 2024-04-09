@@ -17,4 +17,8 @@ public class Webhook {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @OneToOne(optional = false)
+    @JoinColumn(name = "scenario_id")
+    private Scenario scenario;
 }

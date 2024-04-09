@@ -1,5 +1,7 @@
 package dev.mikita.automatewizard.service;
 
+import delight.nashornsandbox.NashornSandbox;
+import delight.nashornsandbox.SandboxScriptContext;
 import dev.mikita.automatewizard.entity.*;
 import dev.mikita.automatewizard.repository.ScenarioExecutionRepository;
 import dev.mikita.automatewizard.repository.ScenarioRepository;
@@ -13,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import javax.script.ScriptContext;
+import javax.script.ScriptException;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -25,6 +30,7 @@ public class ScenarioExecutionService {
     private final ScenarioRepository scenarioRepository;
     private final ScenarioExecutionRepository scenarioExecutionRepository;
     private final TaskExecutionRepository taskExecutionRepository;
+    private final NashornSandbox sandbox;
     private final WebClient.Builder webClientBuilder;
 
     @Async
@@ -49,6 +55,7 @@ public class ScenarioExecutionService {
                 .state(TaskExecutionState.PENDING)
                 .actionUri(task.getAction().getPlugin().getUrl() + "/actions/" + task.getAction().getName())
                 .scenarioExecution(scenarioExecution)
+                .preprocessor(task.getPreprocessor())
                 .build()).toList();
 
         scenarioExecution.setTasks(executionTasks);
@@ -63,13 +70,11 @@ public class ScenarioExecutionService {
 
     @Async
     @Transactional
-    public void taskHandler(UUID taskExecutionId, UUID scenarioExecutionId, Map<String, Object> payload) {
-        var scenarioExecution = scenarioExecutionRepository.findById(scenarioExecutionId)
-                .orElseThrow(() -> new RuntimeException("Scenario execution not found"));
-
+    public void taskHandler(UUID taskExecutionId, Map<String, Object> payload) {
         var executionTask = taskExecutionRepository.findById(taskExecutionId)
                 .orElseThrow(() -> new RuntimeException("Task execution not found"));
 
+        var scenarioExecution = executionTask.getScenarioExecution();
         var executionTasks = scenarioExecution.getTasks();
 
         // Find current task index
@@ -97,16 +102,51 @@ public class ScenarioExecutionService {
                 .subscribe();
     }
 
-    private Mono<Void> executeTask(TaskExecution taskExecution, ScenarioExecution scenarioExecution, Map<String, Object> payload) {
+    private Mono<Void> executeTask(TaskExecution taskExecution, ScenarioExecution scenarioExecution, Map<String, Object> payload){
         taskExecution.setState(TaskExecutionState.STARTED);
         taskExecution.setStartTime(LocalDateTime.now());
+
+        if (taskExecution.getPreprocessor() != null) {
+            var script = new String(Base64.getDecoder().decode(taskExecution.getPreprocessor()));
+            Boolean process = true;
+
+            // Setup context
+            SandboxScriptContext sandboxScriptContext = sandbox.createScriptContext();
+            ScriptContext context = sandboxScriptContext.getContext();
+            context.setAttribute("payload", payload, ScriptContext.ENGINE_SCOPE);
+            context.setAttribute("process", process, ScriptContext.ENGINE_SCOPE);
+
+            // Execute script
+            try {
+                sandbox.eval(script, sandboxScriptContext);
+                var updatedProcess = (Boolean) context.getAttribute("process");
+
+                // Cancel scenario execution if process is false
+                if (!updatedProcess) {
+                    taskExecution.setState(TaskExecutionState.CANCELLED);
+                    taskExecution.setEndTime(LocalDateTime.now());
+                    scenarioExecution.setState(ScenarioExecutionState.CANCELLED);
+                    scenarioExecution.setEndTime(LocalDateTime.now());
+
+                    return Mono.empty();
+                }
+
+                // Update payload
+                payload = (Map<String, Object>) context.getAttribute("payload");
+            } catch (ScriptException | ClassCastException e) {
+                taskExecution.setState(TaskExecutionState.FAILED);
+                taskExecution.setEndTime(LocalDateTime.now());
+                scenarioExecution.setState(ScenarioExecutionState.FAILED);
+                scenarioExecution.setEndTime(LocalDateTime.now());
+                throw new RuntimeException("Error while executing preprocessor script");
+            }
+        }
 
         return webClientBuilder.build().post()
                 .uri(taskExecution.getActionUri())
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("X-User-ID", scenarioExecution.getScenario().getOwner().getId().toString())
                 .header("X-Task-Execution-ID", taskExecution.getId().toString())
-                .header("X-Scenario-Execution-ID", scenarioExecution.getId().toString())
                 .bodyValue(payload)
                 .retrieve()
                 .bodyToMono(Void.class);

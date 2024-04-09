@@ -38,6 +38,9 @@ public class Scenario {
     @JoinColumn(name = "trigger_id")
     private Trigger trigger;
 
+    @OneToOne(mappedBy = "scenario", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Webhook webhook;
+
     @OrderColumn(name = "task_order")
     @OneToMany(mappedBy = "scenario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Task> tasks;

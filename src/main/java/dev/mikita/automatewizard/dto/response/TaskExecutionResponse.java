@@ -18,4 +18,5 @@ public class TaskExecutionResponse {
     private TaskExecutionState state;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private String preprocessor;
 }

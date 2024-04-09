@@ -35,4 +35,7 @@ public class TaskExecution {
 
     @Column(name = "action_uri", nullable = false)
     private String actionUri;
+
+    @Column(name = "preprocessor")
+    private String preprocessor;
 }
