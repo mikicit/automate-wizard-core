@@ -132,13 +132,15 @@ public class ScenarioExecutionService {
                 }
 
                 // Update payload
+                // TODO maybe change to JsonNode :thinking: :)
                 payload = (Map<String, Object>) context.getAttribute("payload");
             } catch (ScriptException | ClassCastException e) {
+                log.error("Error while executing preprocessor script", e);
+
                 taskExecution.setState(TaskExecutionState.FAILED);
                 taskExecution.setEndTime(LocalDateTime.now());
                 scenarioExecution.setState(ScenarioExecutionState.FAILED);
                 scenarioExecution.setEndTime(LocalDateTime.now());
-                throw new RuntimeException("Error while executing preprocessor script");
             }
         }
 
