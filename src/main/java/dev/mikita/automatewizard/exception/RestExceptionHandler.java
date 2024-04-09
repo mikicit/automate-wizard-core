@@ -1,7 +1,6 @@
 package dev.mikita.automatewizard.exception;
 
 import io.jsonwebtoken.ExpiredJwtException;
-import jakarta.security.auth.message.AuthException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -28,14 +27,14 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorInfo(request, e), HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ErrorInfo> authException(HttpServletRequest request, AuthenticationException e) {
+    @ExceptionHandler(ExpiredJwtException.class)
+    public ResponseEntity<ErrorInfo> expiredJwtException(HttpServletRequest request, ExpiredJwtException e) {
         logException(e);
         return new ResponseEntity<>(errorInfo(request, e), HttpStatus.UNAUTHORIZED);
     }
 
-    @ExceptionHandler(ExpiredJwtException.class)
-    public ResponseEntity<ErrorInfo> expiredJwtException(HttpServletRequest request, ExpiredJwtException e) {
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorInfo> authException(HttpServletRequest request, AuthenticationException e) {
         logException(e);
         return new ResponseEntity<>(errorInfo(request, e), HttpStatus.UNAUTHORIZED);
     }
