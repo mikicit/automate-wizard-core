@@ -65,6 +65,7 @@ public class ScenarioService {
         return scenarioExecution;
     }
 
+    @Transactional(readOnly = true)
     public List<TaskExecution> getTaskExecutions(UUID scenarioId, UUID executionId, User user) {
         var scenarioExecution = scenarioExecutionRepository.findById(executionId)
                 .orElseThrow(() -> new RuntimeException("Scenario execution not found"));
@@ -74,8 +75,9 @@ public class ScenarioService {
             throw new RuntimeException("Scenario execution not found");
         }
 
-        return taskExecutionRepository.findAllByScenarioExecutionId(executionId)
-                .orElseThrow(() -> new RuntimeException("Task executions not found"));
+        Hibernate.initialize(scenarioExecution.getTasks());
+
+        return scenarioExecution.getTasks();
     }
 
     public TaskExecution getTaskExecution(UUID scenarioId, UUID executionId, UUID taskExecutionId, User user) {
