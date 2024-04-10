@@ -6,6 +6,7 @@ import dev.mikita.automatewizard.entity.*;
 import dev.mikita.automatewizard.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -186,11 +187,14 @@ public class ScenarioService {
         return newTrigger;
     }
 
+    @Transactional(readOnly = true)
     public List<Task> getTasks(UUID id, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
         if (!scenario.getOwner().equals(user)) {
             throw new RuntimeException("Scenario not found");
         }
+
+        Hibernate.initialize(scenario.getTasks());
 
         return scenario.getTasks();
     }
