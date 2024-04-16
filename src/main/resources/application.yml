@@ -2,26 +2,28 @@ spring:
   application:
     name: automatewizard
   datasource:
-    url: jdbc:h2:file:~/spring-boot-h2-db
+    url: jdbc:h2:file:~/spring-boot-h2-db;AUTO_SERVER=TRUE;
     driver-class-name: org.h2.Driver
     username: root
     password: 12345
   jpa:
     hibernate:
-      ddl-auto: update #create-drop, create, update, validate, none
+      ddl-auto: update
     show-sql: true
     properties:
       format_sql: true
     open-in-view: false
+    generate-ddl: true
   h2:
     console:
       enabled: true
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: always
 logging:
   level:
     web: debug
-server:
-  port: 8080
-  forward-headers-strategy: framework
 token:
   signing:
     key: aS1rbm93LWl0LWlzLWJhZC10by1rZWVwLXRoZS1rZXktaW4tdGhlLXB1YmxpYy1kb21haW4tYnV0LWl0LWlzLWEtcHJvdG90eXBlLXNvLWl0LWlzLW9r
