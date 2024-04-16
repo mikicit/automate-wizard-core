@@ -3,10 +3,13 @@ package dev.mikita.automatewizard.service;
 import dev.mikita.automatewizard.dto.request.CreateScenarioRequest;
 import dev.mikita.automatewizard.dto.request.TaskRequest;
 import dev.mikita.automatewizard.entity.*;
+import dev.mikita.automatewizard.entity.Trigger;
+import dev.mikita.automatewizard.jobs.ScenarioRunningJob;
 import dev.mikita.automatewizard.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
+import org.quartz.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -29,6 +32,7 @@ public class ScenarioService {
     private final ScenarioExecutionRepository scenarioExecutionRepository;
     private final ScenarioExecutionService scenarioExecutionService;
     private final WebClient.Builder webClientBuilder;
+    private final Scheduler quartzScheduler;
 
     public List<Scenario> getScenarios(User user) {
         return scenarioRepository.findAllByOwner(user).orElseThrow(() -> new RuntimeException("Scenarios not found"));
@@ -189,6 +193,46 @@ public class ScenarioService {
         return newTrigger;
     }
 
+    @Transactional
+    public String updateSchedule(UUID id, String cron, User user) {
+        var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
+
+        if (!scenario.getOwner().equals(user)) {
+            throw new RuntimeException("Scenario not found");
+        } else if (scenario.getRunType() != ScenarioRunType.SCHEDULE) {
+            throw new RuntimeException("Scenario is not schedule-based");
+        }
+
+        // Create job
+        var jobDetail = JobBuilder.newJob(ScenarioRunningJob.class)
+                .withIdentity("scenario-%s".formatted(scenario.getId()))
+                .usingJobData("scenarioId", scenario.getId().toString())
+                .storeDurably(true)
+                .build();
+
+        // Create trigger
+        var trigger = TriggerBuilder.newTrigger()
+                .forJob(jobDetail)
+                .withIdentity("scenario-%s".formatted(scenario.getId()))
+                .withSchedule(CronScheduleBuilder.cronSchedule(cron)
+                        .withMisfireHandlingInstructionFireAndProceed())
+                .build();
+
+        try {
+            if (quartzScheduler.checkExists(jobDetail.getKey())) {
+                quartzScheduler.rescheduleJob(trigger.getKey(), trigger);
+            } else {
+                quartzScheduler.scheduleJob(jobDetail, trigger);
+            }
+        } catch (SchedulerException e) {
+            throw new RuntimeException(e);
+        }
+
+        scenario.setCron(cron);
+
+        return scenario.getCron();
+    }
+
     @Transactional(readOnly = true)
     public List<Task> getTasks(UUID id, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
@@ -324,14 +368,22 @@ public class ScenarioService {
     }
 
     private void clearRunType(Scenario scenario, User user) {
-        // Clear trigger if exists
-        if (scenario.getTrigger() != null) {
+        if (scenario.getRunType() == ScenarioRunType.TRIGGER && scenario.getTrigger() != null) {
+            // Clear trigger if exists
             triggerUnsubscribe(scenario, user);
-        }
-
-        // Clear user's webhook if exists
-        if (scenario.getWebhook() != null) {
+        } else if (scenario.getRunType() == ScenarioRunType.WEBHOOK) {
+            // Clear user's webhook
             scenario.setWebhook(null);
+        } else if (scenario.getRunType() == ScenarioRunType.SCHEDULE) {
+            // Clear schedule if exists
+            try {
+                var jobKey = JobKey.jobKey("scenario-%s".formatted(scenario.getId()));
+                if (quartzScheduler.checkExists(jobKey)) {
+                    quartzScheduler.deleteJob(jobKey);
+                }
+            } catch (SchedulerException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

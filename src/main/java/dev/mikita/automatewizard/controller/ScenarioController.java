@@ -107,6 +107,14 @@ public class ScenarioController {
                 .triggerId(scenarioService.updateTrigger(id, request.getTriggerId(), user).getId()).build());
     }
 
+    @PutMapping(path = "/{id}/schedule", consumes = "application/json", produces = "application/json")
+    private ResponseEntity<ScenarioScheduleResponse> updateSchedule(
+            @PathVariable UUID id, @RequestBody UpdateScenarioScheduleRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(ScenarioScheduleResponse.builder()
+                .cron(scenarioService.updateSchedule(id, request.getCron(), user)).build());
+    }
+
     @PostMapping(path = "/{id}/run")
     private ResponseEntity<Void> runScenario(@PathVariable UUID id, @AuthenticationPrincipal User user) {
         scenarioService.runScenarioManual(id, user);
