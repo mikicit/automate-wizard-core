@@ -12,7 +12,6 @@ import org.hibernate.Hibernate;
 import org.quartz.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import java.util.HashMap;
 import java.util.List;
@@ -128,19 +127,67 @@ public class ScenarioService {
             throw new RuntimeException("Scenario not found");
         }
 
-        scenario.setState(state);
-        scenarioRepository.save(scenario);
+        // Check if state is the same
+        if (scenario.getState() == state) {
+            return scenario.getState();
+        }
 
+        // Validation and activation
+        if (state == ScenarioState.ACTIVE) {
+            if (scenario.getTasks().isEmpty()) {
+                throw new RuntimeException("Tasks not set");
+            }
+
+            switch (scenario.getRunType()) {
+                case TRIGGER -> {
+                    if (scenario.getTrigger() == null) {
+                        throw new RuntimeException("Trigger not set");
+                    }
+                    triggerSubscribe(scenario, scenario.getTrigger(), user);
+                }
+                case SCHEDULE -> {
+                    if (scenario.getSchedule() == null) {
+                        throw new RuntimeException("Schedule not set");
+                    }
+
+                    try {
+                        quartzScheduler.resumeJob(JobKey.jobKey("scenario-%s".formatted(scenario.getId())));
+                    } catch (SchedulerException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        } else {
+            switch (scenario.getRunType()) {
+                case TRIGGER -> {
+                    triggerUnsubscribe(scenario, scenario.getTrigger(), user);
+                }
+                case SCHEDULE -> {
+                    try {
+                        quartzScheduler.pauseJob(JobKey.jobKey("scenario-%s".formatted(scenario.getId())));
+                    } catch (SchedulerException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        }
+
+        scenario.setState(state);
         return scenario.getState();
     }
 
     @Transactional
     public ScenarioRunType updateRunType(UUID id, ScenarioRunType runType, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
+
+        // Validation
         if (!scenario.getOwner().equals(user)) {
             throw new RuntimeException("Scenario not found");
+        } else if (scenario.getState() != ScenarioState.INACTIVE) {
+            throw new RuntimeException("Scenario is not inactive");
         }
 
+        // Check if run type is the same
         if (scenario.getRunType() == runType) {
             return scenario.getRunType();
         }
@@ -166,30 +213,28 @@ public class ScenarioService {
     public Trigger updateTrigger(UUID id, UUID triggerId, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
+        // Validation
         if (!scenario.getOwner().equals(user)) {
             throw new RuntimeException("Scenario not found");
         } else if (scenario.getRunType() != ScenarioRunType.TRIGGER) {
             throw new RuntimeException("Scenario is not trigger-based");
+        } else if (scenario.getState() != ScenarioState.INACTIVE) {
+            throw new RuntimeException("Scenario is not inactive");
         }
 
-        var oldTrigger = scenario.getTrigger();
         var newTrigger = triggerRepository.findById(triggerId).orElseThrow(() -> new RuntimeException("Trigger not found"));
+
+        // Check if trigger is the same
+        if (scenario.getTrigger() != null && !scenario.getTrigger().getId().equals(newTrigger.getId())) {
+            return scenario.getTrigger();
+        }
 
         // Check if plugin is installed
         if (!installedPluginRepository.existsByPluginIdAndUserId(newTrigger.getPlugin().getId(), user.getId())) {
             throw new RuntimeException("Plugin %s not installed".formatted(newTrigger.getPlugin().getName()));
         }
 
-        if (oldTrigger != null) {
-            // Check if trigger is the same
-            if (oldTrigger.getId().equals(newTrigger.getId())) {
-                return oldTrigger;
-            } else {
-                triggerUnsubscribe(scenario, user);
-            }
-        }
-
-        triggerSubscribe(scenario, newTrigger, user);
+        scenario.setTrigger(newTrigger);
         return newTrigger;
     }
 
@@ -197,10 +242,13 @@ public class ScenarioService {
     public String updateSchedule(UUID id, String cron, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
+        // Validation
         if (!scenario.getOwner().equals(user)) {
             throw new RuntimeException("Scenario not found");
         } else if (scenario.getRunType() != ScenarioRunType.SCHEDULE) {
             throw new RuntimeException("Scenario is not schedule-based");
+        } else if (scenario.getState() != ScenarioState.INACTIVE) {
+            throw new RuntimeException("Scenario is not inactive");
         }
 
         // Create job
@@ -220,17 +268,19 @@ public class ScenarioService {
 
         try {
             if (quartzScheduler.checkExists(jobDetail.getKey())) {
-                quartzScheduler.rescheduleJob(trigger.getKey(), trigger);
-            } else {
-                quartzScheduler.scheduleJob(jobDetail, trigger);
+                quartzScheduler.deleteJob(jobDetail.getKey());
             }
+
+            quartzScheduler.addJob(jobDetail, true);
+            quartzScheduler.scheduleJob(trigger);
+            quartzScheduler.pauseJob(jobDetail.getKey());
         } catch (SchedulerException e) {
             throw new RuntimeException(e);
         }
 
-        scenario.setCron(cron);
+        scenario.setSchedule(cron);
 
-        return scenario.getCron();
+        return scenario.getSchedule();
     }
 
     @Transactional(readOnly = true)
@@ -248,8 +298,12 @@ public class ScenarioService {
     @Transactional
     public List<Task> updateTasks(UUID id, List<TaskRequest> tasks, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
+
+        // Validation
         if (!scenario.getOwner().equals(user)) {
             throw new RuntimeException("Scenario not found");
+        } else if (scenario.getState() != ScenarioState.INACTIVE) {
+            throw new RuntimeException("Scenario is not inactive");
         }
 
         // Clear old tasks
@@ -278,6 +332,19 @@ public class ScenarioService {
     }
 
     @Transactional(readOnly = true)
+    public void processTaskExecution(UUID taskExecutionId, Map<String, Object> payload) {
+        var taskExecution = taskExecutionRepository.findById(taskExecutionId)
+                .orElseThrow(() -> new RuntimeException("Task execution not found"));
+
+        // Validation
+        if (taskExecution.getState() != TaskExecutionState.STARTED) {
+            throw new RuntimeException("Task execution is not started");
+        }
+
+        scenarioExecutionService.taskHandler(taskExecution.getId(), payload);
+    }
+
+    @Transactional(readOnly = true)
     public void runScenarioManual(UUID id, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
@@ -294,22 +361,10 @@ public class ScenarioService {
     }
 
     @Transactional(readOnly = true)
-    public void taskHandler(UUID taskExecutionId, Map<String, Object> payload) {
-        var taskExecution = taskExecutionRepository.findById(taskExecutionId)
-                .orElseThrow(() -> new RuntimeException("Task execution not found"));
-
-        // Validation
-        if (taskExecution.getState() != TaskExecutionState.STARTED) {
-            throw new RuntimeException("Task execution is not started");
-        }
-
-        scenarioExecutionService.taskHandler(taskExecution.getId(), payload);
-    }
-
-    @Transactional(readOnly = true)
-    public void triggerHandler(UUID scenarioId, Map<String, Object> payload) {
+    public void runScenarioByTrigger(UUID scenarioId, Map<String, Object> payload) {
         var scenario = scenarioRepository.findById(scenarioId).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
+        // Validation
         if (scenario.getState() == ScenarioState.INACTIVE) {
             throw new RuntimeException("Scenario is inactive");
         } else if (scenario.getRunType() != ScenarioRunType.TRIGGER) {
@@ -320,10 +375,11 @@ public class ScenarioService {
     }
 
     @Transactional(readOnly = true)
-    public void webhookHandler(UUID webhookId, Map<String, Object> payload) {
+    public void runScenarioByWebhook(UUID webhookId, Map<String, Object> payload) {
         var webhook = webhookRepository.findById(webhookId).orElseThrow(() -> new RuntimeException("Webhook not found"));
         var scenario = webhook.getScenario();
 
+        // Validation
         if (scenario.getState() == ScenarioState.INACTIVE) {
             throw new RuntimeException("Scenario is inactive");
         } else if (scenario.getRunType() != ScenarioRunType.WEBHOOK) {
@@ -333,11 +389,22 @@ public class ScenarioService {
         scenarioExecutionService.runScenario(scenario.getId(), payload);
     }
 
-    private void triggerSubscribe(Scenario scenario, Trigger trigger, User user) {
-        scenario.setTrigger(trigger);
+    @Transactional(readOnly = true)
+    public void runScenarioBySchedule(UUID scenarioId) {
+        var scenario = scenarioRepository.findById(scenarioId).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
-        // Subscribe to trigger
-        ClientResponse response = webClientBuilder.baseUrl(trigger.getPlugin().getUrl()).build().post()
+        // Validation
+        if (scenario.getState() == ScenarioState.INACTIVE) {
+            throw new RuntimeException("Scenario is inactive");
+        } else if (scenario.getRunType() != ScenarioRunType.SCHEDULE) {
+            throw new RuntimeException("Scenario is not schedule-based");
+        }
+
+        scenarioExecutionService.runScenario(scenario.getId(), new HashMap<>());
+    }
+
+    private void triggerSubscribe(Scenario scenario, Trigger trigger, User user) {
+        var response = webClientBuilder.baseUrl(trigger.getPlugin().getUrl()).build().post()
                 .uri("/triggers/%s".formatted(trigger.getName()))
                 .header("X-User-ID", user.getId().toString())
                 .header("X-Scenario-ID", scenario.getId().toString())
@@ -349,11 +416,8 @@ public class ScenarioService {
         }
     }
 
-    private void triggerUnsubscribe(Scenario scenario, User user) {
-        var trigger = scenario.getTrigger();
-
-        // Unsubscribe from trigger
-        ClientResponse response = webClientBuilder.baseUrl(trigger.getPlugin().getUrl()).build().delete()
+    private void triggerUnsubscribe(Scenario scenario, Trigger trigger, User user) {
+        var response = webClientBuilder.baseUrl(trigger.getPlugin().getUrl()).build().delete()
                 .uri("/triggers/%s".formatted(trigger.getName()))
                 .header("X-User-ID", user.getId().toString())
                 .header("X-Scenario-ID", scenario.getId().toString())
@@ -363,26 +427,27 @@ public class ScenarioService {
         if (response == null || response.statusCode().isError()) {
             throw new RuntimeException("Failed to unsubscribe from trigger");
         }
-
-        scenario.setTrigger(null);
     }
 
     private void clearRunType(Scenario scenario, User user) {
-        if (scenario.getRunType() == ScenarioRunType.TRIGGER && scenario.getTrigger() != null) {
-            // Clear trigger if exists
-            triggerUnsubscribe(scenario, user);
-        } else if (scenario.getRunType() == ScenarioRunType.WEBHOOK) {
-            // Clear user's webhook
-            scenario.setWebhook(null);
-        } else if (scenario.getRunType() == ScenarioRunType.SCHEDULE) {
-            // Clear schedule if exists
-            try {
-                var jobKey = JobKey.jobKey("scenario-%s".formatted(scenario.getId()));
-                if (quartzScheduler.checkExists(jobKey)) {
-                    quartzScheduler.deleteJob(jobKey);
+        switch (scenario.getRunType()) {
+            case TRIGGER -> {
+                if (scenario.getTrigger() != null) {
+                    triggerUnsubscribe(scenario, scenario.getTrigger(), user);
+                    scenario.setTrigger(null);
                 }
-            } catch (SchedulerException e) {
-                throw new RuntimeException(e);
+            }
+            case WEBHOOK -> scenario.setWebhook(null);
+            case SCHEDULE -> {
+                try {
+                    var jobKey = JobKey.jobKey("scenario-%s".formatted(scenario.getId()));
+                    if (quartzScheduler.checkExists(jobKey)) {
+                        quartzScheduler.deleteJob(jobKey);
+                    }
+                    scenario.setSchedule(null);
+                } catch (SchedulerException e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
     }

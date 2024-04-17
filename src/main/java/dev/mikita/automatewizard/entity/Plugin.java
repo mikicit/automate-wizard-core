@@ -37,4 +37,7 @@ public class Plugin {
 
     @OneToMany(mappedBy = "plugin", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Trigger> triggers;
+
+    @OneToMany(mappedBy = "plugin", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
+    private List<InstalledPlugin> installedPlugins;
 }

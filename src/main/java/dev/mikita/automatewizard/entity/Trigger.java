@@ -1,10 +1,13 @@
 package dev.mikita.automatewizard.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import dev.mikita.automatewizard.util.JsonNodeStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -27,7 +30,26 @@ public class Trigger {
     @Column(name = "description", nullable = false)
     private String description;
 
+    @Convert(converter = JsonNodeStringConverter.class)
+    private JsonNode consumes;
+
+    @Convert(converter = JsonNodeStringConverter.class)
+    private JsonNode produces;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "plugin_id")
     private Plugin plugin;
+
+    @OneToMany(mappedBy = "trigger", fetch = FetchType.LAZY)
+    private List<Scenario> scenarios;
+
+    @PreRemove
+    private void preRemove() {
+        for (Scenario s : scenarios) {
+            s.setTrigger(null);
+            if (s.getState() != ScenarioState.INACTIVE) {
+                s.setState(ScenarioState.INACTIVE);
+            }
+        }
+    }
 }

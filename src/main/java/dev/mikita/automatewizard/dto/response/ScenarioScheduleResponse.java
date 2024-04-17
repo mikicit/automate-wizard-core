@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ScenarioScheduleResponse {
-    private String cron;
+    private String schedule;
 }

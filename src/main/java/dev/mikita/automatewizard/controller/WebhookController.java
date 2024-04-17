@@ -21,7 +21,7 @@ public class WebhookController {
             payload = new HashMap<>();
         }
 
-        scenarioService.webhookHandler(id, payload);
+        scenarioService.runScenarioByWebhook(id, payload);
         return ResponseEntity.accepted().build();
     }
 
@@ -32,7 +32,7 @@ public class WebhookController {
             payload = new HashMap<>();
         }
 
-        scenarioService.triggerHandler(id, payload);
+        scenarioService.runScenarioByTrigger(id, payload);
         return ResponseEntity.accepted().build();
     }
 
@@ -43,7 +43,7 @@ public class WebhookController {
             payload = new HashMap<>();
         }
 
-        scenarioService.taskHandler(id, payload);
+        scenarioService.processTaskExecution(id, payload);
         return ResponseEntity.accepted().build();
     }
 }

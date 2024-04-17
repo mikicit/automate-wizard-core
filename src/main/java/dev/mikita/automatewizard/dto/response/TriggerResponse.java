@@ -1,5 +1,6 @@
 package dev.mikita.automatewizard.dto.response;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,4 +17,6 @@ public class TriggerResponse {
     private String label;
     private String description;
     private UUID pluginId;
+    private JsonNode consumes;
+    private JsonNode produces;
 }

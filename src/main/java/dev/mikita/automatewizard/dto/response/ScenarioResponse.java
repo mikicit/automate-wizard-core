@@ -19,5 +19,5 @@ public class ScenarioResponse {
     private ScenarioRunType runType;
     private UUID triggerId;
     private UUID webhookId;
-    private String cron;
+    private String schedule;
 }

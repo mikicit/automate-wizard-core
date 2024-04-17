@@ -112,7 +112,7 @@ public class ScenarioController {
             @PathVariable UUID id, @RequestBody UpdateScenarioScheduleRequest request,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(ScenarioScheduleResponse.builder()
-                .cron(scenarioService.updateSchedule(id, request.getCron(), user)).build());
+                .schedule(scenarioService.updateSchedule(id, request.getSchedule(), user)).build());
     }
 
     @PostMapping(path = "/{id}/run")

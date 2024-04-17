@@ -38,8 +38,8 @@ public class Scenario {
     @JoinColumn(name = "trigger_id")
     private Trigger trigger;
 
-    @Column(name = "cron")
-    private String cron;
+    @Column(name = "schedule")
+    private String schedule;
 
     @OneToOne(mappedBy = "scenario", cascade = CascadeType.ALL, orphanRemoval = true)
     private Webhook webhook;
