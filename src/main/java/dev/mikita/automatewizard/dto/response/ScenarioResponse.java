@@ -1,5 +1,6 @@
 package dev.mikita.automatewizard.dto.response;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import dev.mikita.automatewizard.entity.ScenarioRunType;
 import dev.mikita.automatewizard.entity.ScenarioState;
 import lombok.AllArgsConstructor;
@@ -18,6 +19,7 @@ public class ScenarioResponse {
     private ScenarioState state;
     private ScenarioRunType runType;
     private UUID triggerId;
+    private JsonNode triggerPayload;
     private UUID webhookId;
     private String schedule;
 }

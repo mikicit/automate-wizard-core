@@ -1,18 +1,21 @@
 package dev.mikita.automatewizard.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import dev.mikita.automatewizard.dto.request.CreateScenarioRequest;
 import dev.mikita.automatewizard.dto.request.TaskRequest;
-import dev.mikita.automatewizard.entity.*;
 import dev.mikita.automatewizard.entity.Trigger;
+import dev.mikita.automatewizard.entity.*;
 import dev.mikita.automatewizard.jobs.ScenarioRunningJob;
 import dev.mikita.automatewizard.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.quartz.*;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -143,7 +146,7 @@ public class ScenarioService {
                     if (scenario.getTrigger() == null) {
                         throw new RuntimeException("Trigger not set");
                     }
-                    triggerSubscribe(scenario, scenario.getTrigger(), user);
+                    triggerSubscribe(scenario, scenario.getTrigger(), scenario.getTriggerPayload(), user);
                 }
                 case SCHEDULE -> {
                     if (scenario.getSchedule() == null) {
@@ -210,7 +213,7 @@ public class ScenarioService {
     }
 
     @Transactional
-    public Trigger updateTrigger(UUID id, UUID triggerId, User user) {
+    public Trigger updateTrigger(UUID id, UUID triggerId, JsonNode payload, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
         // Validation
@@ -235,6 +238,7 @@ public class ScenarioService {
         }
 
         scenario.setTrigger(newTrigger);
+        scenario.setTriggerPayload(payload);
         return newTrigger;
     }
 
@@ -403,11 +407,13 @@ public class ScenarioService {
         scenarioExecutionService.runScenario(scenario.getId(), new HashMap<>());
     }
 
-    private void triggerSubscribe(Scenario scenario, Trigger trigger, User user) {
+    private void triggerSubscribe(Scenario scenario, Trigger trigger, JsonNode payload, User user) {
         var response = webClientBuilder.baseUrl(trigger.getPlugin().getUrl()).build().post()
                 .uri("/triggers/%s".formatted(trigger.getName()))
                 .header("X-User-ID", user.getId().toString())
                 .header("X-Scenario-ID", scenario.getId().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(payload)
                 .exchange()
                 .block();
 
@@ -434,6 +440,7 @@ public class ScenarioService {
             case TRIGGER -> {
                 if (scenario.getTrigger() != null) {
                     triggerUnsubscribe(scenario, scenario.getTrigger(), user);
+                    scenario.setTriggerPayload(null);
                     scenario.setTrigger(null);
                 }
             }

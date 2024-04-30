@@ -30,9 +30,11 @@ public class Trigger {
     @Column(name = "description", nullable = false)
     private String description;
 
+    @Column(name = "consumes", nullable = false)
     @Convert(converter = JsonNodeStringConverter.class)
     private JsonNode consumes;
 
+    @Column(name = "produces", nullable = false)
     @Convert(converter = JsonNodeStringConverter.class)
     private JsonNode produces;
 

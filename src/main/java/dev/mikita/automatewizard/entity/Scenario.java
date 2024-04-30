@@ -1,10 +1,13 @@
 package dev.mikita.automatewizard.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import dev.mikita.automatewizard.util.JsonNodeStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -37,6 +40,10 @@ public class Scenario {
     @ManyToOne
     @JoinColumn(name = "trigger_id")
     private Trigger trigger;
+
+    @Column(name = "trigger_payload")
+    @Convert(converter = JsonNodeStringConverter.class)
+    private JsonNode triggerPayload;
 
     @Column(name = "schedule")
     private String schedule;
