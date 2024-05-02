@@ -1,6 +1,7 @@
 package dev.mikita.automatewizard.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import dev.mikita.automatewizard.dto.request.CreateScenarioRequest;
 import dev.mikita.automatewizard.dto.request.TaskRequest;
 import dev.mikita.automatewizard.entity.Trigger;
@@ -17,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -335,7 +335,7 @@ public class ScenarioService {
     }
 
     @Transactional(readOnly = true)
-    public void processTaskExecution(UUID taskExecutionId, Map<String, Object> payload) {
+    public void processTaskExecution(UUID taskExecutionId, JsonNode payload) {
         var taskExecution = taskExecutionRepository.findById(taskExecutionId)
                 .orElseThrow(() -> new RuntimeException("Task execution not found"));
 
@@ -360,11 +360,11 @@ public class ScenarioService {
             throw new RuntimeException("Scenario is not manual");
         }
 
-        scenarioExecutionService.runScenario(scenario.getId(), new HashMap<>());
+        scenarioExecutionService.runScenario(scenario.getId(), JsonNodeFactory.instance.objectNode());
     }
 
     @Transactional(readOnly = true)
-    public void runScenarioByTrigger(UUID scenarioId, Map<String, Object> payload) {
+    public void runScenarioByTrigger(UUID scenarioId, JsonNode payload) {
         var scenario = scenarioRepository.findById(scenarioId).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
         // Validation
@@ -378,7 +378,7 @@ public class ScenarioService {
     }
 
     @Transactional(readOnly = true)
-    public void runScenarioByWebhook(UUID webhookId, Map<String, Object> payload) {
+    public void runScenarioByWebhook(UUID webhookId, JsonNode payload) {
         var webhook = webhookRepository.findById(webhookId).orElseThrow(() -> new RuntimeException("Webhook not found"));
         var scenario = webhook.getScenario();
 
@@ -403,7 +403,7 @@ public class ScenarioService {
             throw new RuntimeException("Scenario is not schedule-based");
         }
 
-        scenarioExecutionService.runScenario(scenario.getId(), new HashMap<>());
+        scenarioExecutionService.runScenario(scenario.getId(), JsonNodeFactory.instance.objectNode());
     }
 
     private void triggerSubscribe(Scenario scenario, Trigger trigger, JsonNode payload, User user) {

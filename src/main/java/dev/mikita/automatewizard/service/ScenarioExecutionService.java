@@ -1,8 +1,15 @@
 package dev.mikita.automatewizard.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import delight.nashornsandbox.NashornSandbox;
 import delight.nashornsandbox.SandboxScriptContext;
-import dev.mikita.automatewizard.entity.*;
+import dev.mikita.automatewizard.entity.ScenarioExecution;
+import dev.mikita.automatewizard.entity.ScenarioExecutionState;
+import dev.mikita.automatewizard.entity.TaskExecution;
+import dev.mikita.automatewizard.entity.TaskExecutionState;
 import dev.mikita.automatewizard.repository.ScenarioExecutionRepository;
 import dev.mikita.automatewizard.repository.ScenarioRepository;
 import dev.mikita.automatewizard.repository.TaskExecutionRepository;
@@ -16,10 +23,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import javax.script.ScriptContext;
-import javax.script.ScriptException;
 import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -35,7 +40,7 @@ public class ScenarioExecutionService {
 
     @Async
     @Transactional
-    public void runScenario(UUID scenarioId, Map<String, Object> payload) {
+    public void runScenario(UUID scenarioId, JsonNode payload) {
         var scenario = scenarioRepository.findById(scenarioId)
                 .orElseThrow(() -> new RuntimeException("Scenario not found"));
 
@@ -47,6 +52,7 @@ public class ScenarioExecutionService {
         // Create scenario execution
         final ScenarioExecution scenarioExecution = ScenarioExecution.builder()
                 .scenario(scenario)
+                .environment(JsonNodeFactory.instance.objectNode())
                 .state(ScenarioExecutionState.STARTED)
                 .build();
 
@@ -70,7 +76,7 @@ public class ScenarioExecutionService {
 
     @Async
     @Transactional
-    public void taskHandler(UUID taskExecutionId, Map<String, Object> payload) {
+    public void taskHandler(UUID taskExecutionId, JsonNode payload) {
         var executionTask = taskExecutionRepository.findById(taskExecutionId)
                 .orElseThrow(() -> new RuntimeException("Task execution not found"));
 
@@ -102,27 +108,36 @@ public class ScenarioExecutionService {
                 .subscribe();
     }
 
-    private Mono<Void> executeTask(TaskExecution taskExecution, ScenarioExecution scenarioExecution, Map<String, Object> payload){
+    private Mono<Void> executeTask(TaskExecution taskExecution, ScenarioExecution scenarioExecution, JsonNode payload){
         taskExecution.setState(TaskExecutionState.STARTED);
         taskExecution.setStartTime(LocalDateTime.now());
 
         if (taskExecution.getPreprocessor() != null) {
+            var stringBuilder = new StringBuilder();
+            stringBuilder.append("var env = JSON.parse(env);");
             var script = new String(Base64.getDecoder().decode(taskExecution.getPreprocessor()));
-            Boolean process = true;
+            stringBuilder.append(script);
+            stringBuilder.append("env = JSON.stringify(env);");
+            script = stringBuilder.toString();
+            boolean process = true;
 
             // Setup context
             SandboxScriptContext sandboxScriptContext = sandbox.createScriptContext();
             ScriptContext context = sandboxScriptContext.getContext();
-            context.setAttribute("payload", payload, ScriptContext.ENGINE_SCOPE);
-            context.setAttribute("process", process, ScriptContext.ENGINE_SCOPE);
+
+            var environment = (ObjectNode) scenarioExecution.getEnvironment();
+            environment.set("payload", payload);
+            environment.set("process", JsonNodeFactory.instance.booleanNode(process));
+
+            context.setAttribute("env", environment.toString(), ScriptContext.ENGINE_SCOPE);
 
             // Execute script
             try {
                 sandbox.eval(script, sandboxScriptContext);
-                var updatedProcess = (Boolean) context.getAttribute("process");
+                var updatedEnvironment = new ObjectMapper().readTree((String) context.getAttribute("env"));
 
                 // Cancel scenario execution if process is false
-                if (!updatedProcess) {
+                if (!updatedEnvironment.get("process").asBoolean()) {
                     taskExecution.setState(TaskExecutionState.CANCELLED);
                     taskExecution.setEndTime(LocalDateTime.now());
                     scenarioExecution.setState(ScenarioExecutionState.CANCELLED);
@@ -132,15 +147,17 @@ public class ScenarioExecutionService {
                 }
 
                 // Update payload
-                // TODO maybe change to JsonNode :thinking: :)
-                payload = (Map<String, Object>) context.getAttribute("payload");
-            } catch (ScriptException | ClassCastException e) {
+                payload = updatedEnvironment.get("payload");
+                scenarioExecution.setEnvironment(updatedEnvironment);
+            } catch (Exception e) {
                 log.error("Error while executing preprocessor script", e);
 
                 taskExecution.setState(TaskExecutionState.FAILED);
                 taskExecution.setEndTime(LocalDateTime.now());
                 scenarioExecution.setState(ScenarioExecutionState.FAILED);
                 scenarioExecution.setEndTime(LocalDateTime.now());
+
+                return Mono.empty();
             }
         }
 
