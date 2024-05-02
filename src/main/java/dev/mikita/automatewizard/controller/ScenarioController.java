@@ -103,9 +103,9 @@ public class ScenarioController {
     private ResponseEntity<ScenarioTriggerResponse> updateTrigger(
             @PathVariable UUID id, @RequestBody UpdateScenarioTriggerRequest request,
             @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(ScenarioTriggerResponse.builder()
-                .triggerId(scenarioService.updateTrigger(id, request.getTriggerId(), request.getTriggerPayload(), user)
-                        .getId()).build());
+        return ResponseEntity.ok(new ModelMapper().map(
+                scenarioService.updateTrigger(id, request.getTriggerId(), request.getTriggerPayload(), user),
+                ScenarioTriggerResponse.class));
     }
 
     @PutMapping(path = "/{id}/schedule", consumes = "application/json", produces = "application/json")

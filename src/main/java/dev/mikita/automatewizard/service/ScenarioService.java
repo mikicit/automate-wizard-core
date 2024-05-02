@@ -212,7 +212,7 @@ public class ScenarioService {
     }
 
     @Transactional
-    public Trigger updateTrigger(UUID id, UUID triggerId, JsonNode payload, User user) {
+    public Scenario updateTrigger(UUID id, UUID triggerId, JsonNode payload, User user) {
         var scenario = scenarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Scenario not found"));
 
         // Validation
@@ -228,7 +228,7 @@ public class ScenarioService {
 
         // Check if trigger is the same
         if (scenario.getTrigger() != null && !scenario.getTrigger().getId().equals(newTrigger.getId())) {
-            return scenario.getTrigger();
+            return scenario;
         }
 
         // Check if plugin is installed
@@ -238,7 +238,7 @@ public class ScenarioService {
 
         scenario.setTrigger(newTrigger);
         scenario.setTriggerPayload(payload);
-        return newTrigger;
+        return scenario;
     }
 
     @Transactional
