@@ -26,6 +26,6 @@ public class Task {
     @JoinColumn(name = "action_id")
     private Action action;
 
-    @Column(name = "preprocessor")
+    @Column(name = "preprocessor", length = 4000)
     private String preprocessor;
 }

@@ -41,7 +41,7 @@ public class Scenario {
     @JoinColumn(name = "trigger_id")
     private Trigger trigger;
 
-    @Column(name = "trigger_payload")
+    @Column(name = "trigger_payload", length = 4000)
     @Convert(converter = JsonNodeStringConverter.class)
     private JsonNode triggerPayload;
 

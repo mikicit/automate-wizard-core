@@ -30,11 +30,11 @@ public class Action {
     @Column(name = "description", nullable = false)
     private String description;
 
-    @Column(name = "consumes", nullable = false)
+    @Column(name = "consumes", nullable = false, length = 4000)
     @Convert(converter = JsonNodeStringConverter.class)
     private JsonNode consumes;
 
-    @Column(name = "produces", nullable = false)
+    @Column(name = "produces", nullable = false, length = 4000)
     @Convert(converter = JsonNodeStringConverter.class)
     private JsonNode produces;
 

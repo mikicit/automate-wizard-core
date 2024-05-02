@@ -1,5 +1,7 @@
 package dev.mikita.automatewizard.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import dev.mikita.automatewizard.util.JsonNodeStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,6 +35,10 @@ public class ScenarioExecution {
     @ManyToOne(optional = false)
     @JoinColumn(name = "scenario_id")
     private Scenario scenario;
+
+    @Column(name = "environment", nullable = false, length = 4000)
+    @Convert(converter = JsonNodeStringConverter.class)
+    private JsonNode environment;
 
     @OrderColumn(name = "task_order")
     @OneToMany(mappedBy = "scenarioExecution", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
