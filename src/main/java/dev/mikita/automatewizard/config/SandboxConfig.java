@@ -12,7 +12,7 @@ public class SandboxConfig {
     public NashornSandbox nashornSandbox() {
         NashornSandbox sandbox = NashornSandboxes.create();
         sandbox.setMaxCPUTime(100);
-        sandbox.setMaxMemory(50*1024);
+        sandbox.setMaxMemory(100*1024*1024);
         sandbox.allowNoBraces(false);
         sandbox.setMaxPreparedStatements(30);
         sandbox.setExecutor(Executors.newSingleThreadExecutor());
