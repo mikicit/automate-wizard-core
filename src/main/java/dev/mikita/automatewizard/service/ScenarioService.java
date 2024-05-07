@@ -3,6 +3,7 @@ package dev.mikita.automatewizard.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import dev.mikita.automatewizard.dto.request.CreateScenarioRequest;
+import dev.mikita.automatewizard.dto.request.PluginTaskExecutionRequest;
 import dev.mikita.automatewizard.dto.request.TaskRequest;
 import dev.mikita.automatewizard.entity.Trigger;
 import dev.mikita.automatewizard.entity.*;
@@ -335,7 +336,7 @@ public class ScenarioService {
     }
 
     @Transactional(readOnly = true)
-    public void processTaskExecution(UUID taskExecutionId, JsonNode payload) {
+    public void processTaskExecution(UUID taskExecutionId, PluginTaskExecutionRequest request) {
         var taskExecution = taskExecutionRepository.findById(taskExecutionId)
                 .orElseThrow(() -> new RuntimeException("Task execution not found"));
 
@@ -344,7 +345,7 @@ public class ScenarioService {
             throw new RuntimeException("Task execution is not started");
         }
 
-        scenarioExecutionService.taskHandler(taskExecution.getId(), payload);
+        scenarioExecutionService.taskHandler(taskExecution.getId(), request);
     }
 
     @Transactional(readOnly = true)

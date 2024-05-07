@@ -24,9 +24,13 @@ public class HTMLPlugin extends RemotePlugin {
                         .withUrl(coreUrl + "/api/v1/webhooks/tasks/" + "{{jsonPath originalRequest.headers '$.X-Task-Execution-Id'}}")
                         .withBody("""
                                 {
-                                  "html": {
-                                    "body": "19.99"
-                                  }
+                                    "state": "SUCCESS",
+                                    "message": "",
+                                    "result": {
+                                        "html": {
+                                            "body": "19.99"
+                                        }
+                                    }
                                 }
                                 """)
                         .withHeader("Content-Type", "application/json")

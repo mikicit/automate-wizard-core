@@ -24,7 +24,12 @@ public class SlackPlugin extends RemotePlugin {
                         .withDelay(new UniformDistribution(500, 2000))
                         .withMethod(RequestMethod.POST)
                         .withUrl(coreUrl + "/api/v1/webhooks/tasks/" + "{{jsonPath originalRequest.headers '$.X-Task-Execution-Id'}}")
-                        .withBody("{}")
+                        .withBody("""
+                                {
+                                    "state": "SUCCESS",
+                                    "message": ""
+                                }
+                                """)
                         .withHeader("Content-Type", "application/json")
                 ));
     }

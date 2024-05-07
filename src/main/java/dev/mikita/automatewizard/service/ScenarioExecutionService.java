@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import delight.nashornsandbox.NashornSandbox;
 import delight.nashornsandbox.SandboxScriptContext;
+import dev.mikita.automatewizard.dto.request.PluginTaskExecutionRequest;
 import dev.mikita.automatewizard.entity.ScenarioExecution;
 import dev.mikita.automatewizard.entity.ScenarioExecutionState;
 import dev.mikita.automatewizard.entity.TaskExecution;
@@ -76,7 +77,7 @@ public class ScenarioExecutionService {
 
     @Async
     @Transactional
-    public void taskHandler(UUID taskExecutionId, JsonNode payload) {
+    public void taskHandler(UUID taskExecutionId, PluginTaskExecutionRequest request) {
         var executionTask = taskExecutionRepository.findById(taskExecutionId)
                 .orElseThrow(() -> new RuntimeException("Task execution not found"));
 
@@ -91,6 +92,15 @@ public class ScenarioExecutionService {
 
         // Update task execution
         executionTask.setEndTime(LocalDateTime.now());
+
+        if (request.getState() == PluginTaskExecutionRequest.PluginTaskExecutionState.FAILED) {
+            executionTask.setState(TaskExecutionState.FAILED);
+            scenarioExecution.setState(ScenarioExecutionState.FAILED);
+            scenarioExecution.setEndTime(LocalDateTime.now());
+            scenarioExecutionRepository.save(scenarioExecution);
+            return;
+        }
+
         executionTask.setState(TaskExecutionState.COMPLETED);
 
         // Check if task is last and complete scenario execution
@@ -102,7 +112,7 @@ public class ScenarioExecutionService {
         }
 
         // Execute next task
-        executeTask(executionTasks.get(currentTaskIndex + 1), scenarioExecution, payload)
+        executeTask(executionTasks.get(currentTaskIndex + 1), scenarioExecution, request.getResult())
                 .publishOn(Schedulers.boundedElastic())
                 .doOnError(taskErrorHandler(executionTask.getId(), scenarioExecution.getId()))
                 .subscribe();

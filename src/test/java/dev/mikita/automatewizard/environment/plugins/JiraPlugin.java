@@ -25,10 +25,14 @@ public class JiraPlugin extends RemotePlugin {
                         .withUrl(coreUrl + "/api/v1/webhooks/tasks/" + "{{jsonPath originalRequest.headers '$.X-Task-Execution-Id'}}")
                         .withBody("""
                                 {
-                                    "participants": [{
-                                        "userId": "d028e5ab-d157-477c-921c-1e21c5d444b6",
-                                        "slackId": "f2e07b76-d230-4f72-82bc-a7282ddb2eb2"
-                                    }]
+                                    "state": "SUCCESS",
+                                    "message": "",
+                                    "result": {
+                                        "participants": [{
+                                            "userId": "d028e5ab-d157-477c-921c-1e21c5d444b6",
+                                            "slackId": "f2e07b76-d230-4f72-82bc-a7282ddb2eb2"
+                                        }]
+                                    }
                                 }
                                 """)
                         .withHeader("Content-Type", "application/json")
@@ -46,7 +50,12 @@ public class JiraPlugin extends RemotePlugin {
                         .withDelay(new UniformDistribution(500, 2000))
                         .withMethod(RequestMethod.POST)
                         .withUrl(coreUrl + "/api/v1/webhooks/tasks/" + "{{jsonPath originalRequest.headers '$.X-Task-Execution-Id'}}")
-                        .withBody("{}")
+                        .withBody("""
+                                {
+                                    "state": "SUCCESS",
+                                    "message": ""
+                                }
+                                """)
                         .withHeader("Content-Type", "application/json")
                 ));
     }
