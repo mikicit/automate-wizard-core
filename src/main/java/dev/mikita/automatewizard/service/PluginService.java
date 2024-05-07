@@ -3,12 +3,13 @@ package dev.mikita.automatewizard.service;
 import dev.mikita.automatewizard.dto.request.AddPluginRequest;
 import dev.mikita.automatewizard.dto.response.AddPluginResponse;
 import dev.mikita.automatewizard.entity.*;
+import dev.mikita.automatewizard.exception.IllegalStateException;
+import dev.mikita.automatewizard.exception.NotFoundException;
 import dev.mikita.automatewizard.repository.ActionRepository;
 import dev.mikita.automatewizard.repository.InstalledPluginRepository;
 import dev.mikita.automatewizard.repository.PluginRepository;
 import dev.mikita.automatewizard.repository.TriggerRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -16,7 +17,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.util.List;
 import java.util.UUID;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PluginService {
@@ -99,11 +99,11 @@ public class PluginService {
     }
 
     public List<Plugin> getUserPlugins(User user) {
-        return pluginRepository.findAllByAuthorId(user.getId()).orElseThrow(() -> new RuntimeException("User not found"));
+        return pluginRepository.findAllByAuthorId(user.getId()).orElseThrow(() -> new NotFoundException("User not found"));
     }
 
     public void installPlugin(UUID id, User user) {
-        var plugin = pluginRepository.findById(id).orElseThrow(() -> new RuntimeException("Plugin not found"));
+        var plugin = pluginRepository.findById(id).orElseThrow(() -> new NotFoundException("Plugin not found"));
 
         var installedPlugin = InstalledPlugin.builder()
                 .id(new InstalledPluginId(user.getId(), id))
@@ -119,7 +119,7 @@ public class PluginService {
                 .block();
 
         if (response == null || response.statusCode().isError()) {
-            throw new RuntimeException("Failed to install plugin");
+            throw new IllegalStateException("Failed to install plugin");
         }
 
         installedPluginRepository.save(installedPlugin);
@@ -127,7 +127,7 @@ public class PluginService {
 
     public void uninstallPlugin(UUID id, User user) {
         var installedPlugin = installedPluginRepository.findByPluginIdAndUserId(id, user.getId())
-                .orElseThrow(() -> new RuntimeException("Plugin not found"));
+                .orElseThrow(() -> new NotFoundException("Plugin not found"));
 
         // Send uninstall request to plugin server
         ClientResponse response = webClientBuilder.baseUrl(installedPlugin.getPlugin().getUrl()).build().post()
@@ -137,17 +137,17 @@ public class PluginService {
                 .block();
 
         if (response == null || response.statusCode().isError()) {
-            throw new RuntimeException("Failed to install plugin");
+            throw new IllegalStateException("Failed to install plugin");
         }
 
         installedPluginRepository.delete(installedPlugin);
     }
 
     public List<Action> getActionsByPluginId(UUID pluginId) {
-        return actionRepository.findAllByPluginId(pluginId).orElseThrow(() -> new RuntimeException("Actions not found"));
+        return actionRepository.findAllByPluginId(pluginId).orElseThrow(() -> new NotFoundException("Actions not found"));
     }
 
     public List<Trigger> getTriggersByPluginId(UUID pluginId) {
-        return triggerRepository.findAllByPluginId(pluginId).orElseThrow(() -> new RuntimeException("Triggers not found"));
+        return triggerRepository.findAllByPluginId(pluginId).orElseThrow(() -> new NotFoundException("Triggers not found"));
     }
 }

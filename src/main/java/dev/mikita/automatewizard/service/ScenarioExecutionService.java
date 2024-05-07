@@ -11,6 +11,8 @@ import dev.mikita.automatewizard.entity.ScenarioExecution;
 import dev.mikita.automatewizard.entity.ScenarioExecutionState;
 import dev.mikita.automatewizard.entity.TaskExecution;
 import dev.mikita.automatewizard.entity.TaskExecutionState;
+import dev.mikita.automatewizard.exception.IllegalStateException;
+import dev.mikita.automatewizard.exception.NotFoundException;
 import dev.mikita.automatewizard.repository.ScenarioExecutionRepository;
 import dev.mikita.automatewizard.repository.ScenarioRepository;
 import dev.mikita.automatewizard.repository.TaskExecutionRepository;
@@ -43,11 +45,11 @@ public class ScenarioExecutionService {
     @Transactional
     public void runScenario(UUID scenarioId, JsonNode payload) {
         var scenario = scenarioRepository.findById(scenarioId)
-                .orElseThrow(() -> new RuntimeException("Scenario not found"));
+                .orElseThrow(() -> new NotFoundException("Scenario not found"));
 
         var tasks = scenario.getTasks();
         if (tasks.isEmpty()) {
-            throw new RuntimeException("Scenario has no tasks");
+            throw new IllegalStateException("Scenario has no tasks");
         }
 
         // Create scenario execution
@@ -79,7 +81,7 @@ public class ScenarioExecutionService {
     @Transactional
     public void taskHandler(UUID taskExecutionId, PluginTaskExecutionRequest request) {
         var executionTask = taskExecutionRepository.findById(taskExecutionId)
-                .orElseThrow(() -> new RuntimeException("Task execution not found"));
+                .orElseThrow(() -> new NotFoundException("Task execution not found"));
 
         var scenarioExecution = executionTask.getScenarioExecution();
         var executionTasks = scenarioExecution.getTasks();
@@ -87,7 +89,7 @@ public class ScenarioExecutionService {
         // Find current task index
         var currentTaskIndex = executionTasks.indexOf(executionTask);
         if (currentTaskIndex == -1) {
-            throw new RuntimeException("Task execution not found");
+            throw new NotFoundException("Task execution not found");
         }
 
         // Update task execution
