@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: automatewizard
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: root
+    password: 12345
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  quartz:
+    job-store-type: memory
+    jdbc:
+      initialize-schema: always
+logging:
+  level:
+    web: INFO

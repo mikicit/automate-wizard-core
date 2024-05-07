@@ -1,0 +1,30 @@
+{
+  "name": "SMS",
+  "description": "SMS plugin",
+  "actions": [
+    {
+      "name": "send-sms",
+      "label": "Send SMS",
+      "description": "Send SMS",
+      "produces": {},
+      "consumes": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "SMS",
+        "type": "object",
+        "properties": {
+          "phoneNumber": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "phoneNumber",
+          "message"
+        ]
+      }
+    }
+  ],
+  "triggers": []
+}

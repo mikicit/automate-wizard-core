@@ -1,0 +1,116 @@
+{
+  "name": "Jira",
+  "description": "Jira plugin",
+  "actions": [
+    {
+      "name": "get-project-participants",
+      "label": "Get Project Participants",
+      "description": "Get a list of project participants",
+      "consumes": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Jira project",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId"
+        ]
+      },
+      "produces": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Jira project participant",
+        "type": "object",
+        "properties": {
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "type": "string"
+                },
+                "slackId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "userId",
+                "slackId"
+              ]
+            }
+          }
+        },
+        "required": [
+          "participants"
+        ]
+      }
+    },
+    {
+      "name": "assign-task",
+      "label": "Assign Task",
+      "description": "Assign a task to a project participant",
+      "consumes": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Jira assign task",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId",
+          "taskId",
+          "userId"
+        ]
+      },
+      "produces": {}
+    }
+  ],
+  "triggers": [
+    {
+      "name": "new-task-trigger",
+      "label": "New Task",
+      "description": "New task in the project",
+      "consumes": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Jira project",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectId"
+        ]
+      },
+      "produces": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Jira task",
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "taskId",
+          "projectId"
+        ]
+      }
+    }
+  ]
+}

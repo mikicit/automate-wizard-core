@@ -1,0 +1,38 @@
+{
+  "name": "HTML",
+  "description": "HTML plugin",
+  "actions": [
+    {
+      "name": "get-webpage",
+      "label": "Get HTML",
+      "description": "Get HTML by URL",
+      "produces": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "HTML",
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "html"
+        ]
+      },
+      "consumes": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "URL",
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    }
+  ],
+  "triggers": []
+}
